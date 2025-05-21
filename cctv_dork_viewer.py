@@ -1,57 +1,62 @@
 import requests
 from bs4 import BeautifulSoup
-from rich.console import Console
-from rich.table import Table
-from termcolor import cprint
+import re
+import os
 
-console = Console()
-
-def show_banner():
-    cprint("""
-     █████╗      █████╗ 
+banner = r"""
+     █████╗      █████╗
     ██╔══██╗    ██╔══██╗
-    ███████║    ███████║  CCTV DORK VIEWER
-    ██╔══██║    ██╔══██║     Made in Abdullah
+    ███████║    ███████║   CCTV IP VIEWER
+    ██╔══██║    ██╔══██║     Made in MD Abdullah
     ██║  ██║    ██║  ██║
     ╚═╝  ╚═╝    ╚═╝  ╚═╝
-    """, "red")
+"""
 
 dorks = [
     'inurl:"/view.shtml"',
     'intitle:"Live View / - AXIS"',
     'inurl:/mjpg/video.mjpg',
-    'intitle:"IP Camera [root]"'
+    'intitle:"IP Camera "'
 ]
 
-def search_dork(dork, max_results=5):
-    url = f"https://www.google.com/search?q={dork}"
-    headers = {"User-Agent": "Mozilla/5.0"}
+headers = {
+    "User-Agent": "Mozilla/5.0"
+}
+
+def search_dork(dork):
+    print(f"\nSearching: {dork}")
+    url = f"https://www.bing.com/search?q={dork}"
     try:
-        res = requests.get(url, headers=headers)
-        soup = BeautifulSoup(res.text, "html.parser")
-        links = []
-        for g in soup.find_all('a'):
-            href = g.get('href')
-            if href and "http" in href and "google" not in href:
-                links.append(href)
-                if len(links) >= max_results:
-                    break
-        return links
+        r = requests.get(url, headers=headers)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        links = soup.find_all('a', href=True)
+        found = []
+        for link in links:
+            href = link['href']
+            if re.match(r'https?://', href):
+                found.append(href)
+        return found
     except Exception as e:
-        console.print(f"[red]Error:[/red] {e}")
+        print(f"Error: {e}")
         return []
 
 def main():
-    show_banner()
-    table = Table(title="CCTV Links Found", show_lines=True)
-    table.add_column("Dork")
-    table.add_column("Found Link")
+    os.system("clear")
+    print(banner)
+    print("\n\033[1;32mCollecting Live Camera IPs...\033[0m")
+    print("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓")
+    print("┃ Dork                       ┃ Found IP/Domain              ┃")
+    print("┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩")
     for dork in dorks:
-        console.print(f"[green]Searching:[/green] {dork}")
         results = search_dork(dork)
-        for link in results:
-            table.add_row(dork, link)
-    console.print(table)
+        if results:
+            for link in results[:3]:  # Top 3 results
+                domain = re.findall(r"https?://([^/]+)", link)
+                domain = domain[0] if domain else "N/A"
+                print(f"│ {dork.ljust(26)} │ {domain.ljust(28)} │")
+        else:
+            print(f"│ {dork.ljust(26)} │ No results                  │")
+    print("└────────────────────────────┴──────────────────────────────┘")
 
 if __name__ == "__main__":
     main()
